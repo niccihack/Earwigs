@@ -46,12 +46,15 @@ for (k in 1:ncol(comb)){
   sumglm = summary(myglm)
   glmList[[k]] <- sumglm
 }
-capture.output(glmList, file = 'earwig.glm.txt')
+capture.output(glmList, file = 'earwig.glms.txt')
 
-#graphing
-ggplot(trials, aes(x = category, fill = cohabitation))+
-  geom_bar()+
-  theme_classic()
+#final model determined from loop
+fullglm = glm(cohabitation~sex+size+time*shelters+sex*shelters-1, family = binomial, data = trials)
+sumfullglm = summary(fullglm)
+capture.output(sumfullglm, file = 'earwigs_finalglm.txt')
+car::Anova(fullglm, type =2)#If you want to use likelihood-ratio chisquared distribution instead of normal distribution in glm
+posthocsex= summary(glht(fullglm, mcp(sex = 'Tukey')))
+posthoctime= summary(glht(tglm, mcp(time = 'Tukey')))
 
 
 
@@ -64,10 +67,25 @@ OG$size = as.factor(OG$size)
 OG$shelter = as.factor(OG$shelter)
 OG$Sex = as.factor(OG$Sex)
 oneshel = dplyr::filter(OG, shelter == 'shelter')
-oneshelglm = glm(Cohabitation12h~size+Sex+TrialType, family = 'binomial', data = oneshel)
+oneshelglm = glm(Cohabitation12h~Sex*TrialType*size-1, family = binomial, data = oneshel)
 summary(oneshelglm)
 
 
+#graphing
+ggplot(trials, aes(x = category, fill = cohabitation))+
+  geom_bar()+
+  theme_classic()
 
+ggplot(trials, aes(x = size, fill = cohabitation))+
+  geom_bar()+
+  theme_classic()
+
+ggplot(trials, aes(x = time, y = shelters, color = cohabitation))+
+  geom_jitter()+
+  theme_classic()
+
+ggplot(trials, aes(x = sex, y = shelters, color = cohabitation))+
+  geom_jitter()+
+  theme_classic()
 
 

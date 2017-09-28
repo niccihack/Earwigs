@@ -4,7 +4,7 @@
 
 
 #load packages
-packages <- c('readxl','dplyr','car','ggplot2','combinat','multcomp')
+packages <- c('readxl','dplyr','car','ggplot2','combinat','multcomp','lsmeans')
 lapply(packages, require, character.only = T)
 
 #Data manipulation
@@ -49,12 +49,18 @@ for (k in 1:ncol(comb)){
 capture.output(glmList, file = 'earwig.glms.txt')
 
 #final model determined from loop
-fullglm = glm(cohabitation~sex+size+time*shelters+sex*shelters-1, family = binomial, data = trials)
+fullglm = glm(cohabitation~size+time*shelters+sex*shelters, family = binomial, data = trials)
 sumfullglm = summary(fullglm)
 capture.output(sumfullglm, file = 'earwigs_finalglm.txt')
 car::Anova(fullglm, type =2)#If you want to use likelihood-ratio chisquared distribution instead of normal distribution in glm
-posthocsex= summary(glht(fullglm, mcp(sex = 'Tukey')))
+posthocsexfull = summary(glht(fullglm, mcp(sex = 'Tukey')))
+posthocsex = summary(glht(tglm,mcp(sex = 'Tukey')))
+posthocsexint= lsmeans(fullglm, pairwise~sex*shelters, adjust = 'Tukey')
+capture.output(posthocsexint, file = 'earwigs.fullGLM.Tukey-sex.txt')
 posthoctime= summary(glht(tglm, mcp(time = 'Tukey')))
+posthoctimeint= lsmeans(fullglm, pairwise~time*shelters, adjust = 'Tukey')
+posthocsize = summary(glht(fullglm, mcp(size = 'Tukey')))
+
 
 
 
@@ -63,12 +69,23 @@ OG <- read_excel("C:/Users/manic/Dropbox/Home computer/Earwigs/earwig-code/Nicci
 OG <- OG[,1:12]
 OG$TrialType = as.factor(OG$TrialType)
 OG$Cohabitation12h = as.factor(OG$Cohabitation12h)
+OG$Cohabitation24h = as.factor(OG$Cohabitation24h)
+OG$Locationat12 = as.factor(OG$Locationat12)
+OG$Locationat24 = as.factor(OG$Locationat24)
 OG$size = as.factor(OG$size)
 OG$shelter = as.factor(OG$shelter)
 OG$Sex = as.factor(OG$Sex)
-oneshel = dplyr::filter(OG, shelter == 'shelter')
-oneshelglm = glm(Cohabitation12h~Sex*TrialType*size-1, family = binomial, data = oneshel)
-summary(oneshelglm)
+difsize = dplyr::filter(OG, shelter == 'shelter' & size == 'different')
+size = dplyr::filter(difsize, EarwigID == 'L' | EarwigID == 'S')
+MF = dplyr::filter(OG, shelter == 'shelter' & TrialType == 'MF')
+FF = dplyr::filter(OG, shelter == 'shelter' & TrialType == 'FF')
+sizeglm = glm(Locationat12~EarwigID+TrialType, family = binomial, data = size)
+summary(sizeglm)
+MFglm = glm(Locationat24~Sex, family = binomial, data = MF)
+summary(MFglm)
+ggplot(MF, aes(x = Sex, fill = Locationat24))+
+  geom_bar()+
+  theme_classic()
 
 
 #graphing
@@ -76,8 +93,21 @@ ggplot(trials, aes(x = category, fill = cohabitation))+
   geom_bar()+
   theme_classic()
 
-ggplot(trials, aes(x = size, fill = cohabitation))+
-  geom_bar()+
+d2 <- trials %>% 
+  group_by(size,cohabitation) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(d2, aes(x = size, y = perc*100, fill = cohabitation))+
+  geom_bar(stat="identity")+
+  theme_classic()
+
+ggplot(trials, aes(x = size, y = sex, color= cohabitation))+
+  geom_jitter()+
+  theme_classic()
+
+ggplot(trials, aes(x = size, y =  cohabitation))+
+  geom_jitter()+
   theme_classic()
 
 ggplot(trials, aes(x = time, y = shelters, color = cohabitation))+
